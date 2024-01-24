@@ -87,6 +87,7 @@ declare module "youtube-player/dist/types" {
 		getAvailableAudioTracks(): Promise<audioTrack[]>;
 		getAvailableQualityData(): QualityDataEntry[];
 		getPlaybackQuality(): Promise<string>;
+		getPlaybackQualityLabel(): Promise<YoutubePlayerQualityLabel>;
 		getPlayerResponse(): {
 			storyboards?: {
 				playerStoryboardSpecRenderer?: {
@@ -152,5 +153,4 @@ declare module "zod-error/lib/functions/generate-error-message/index" {
 	import type { ErrorMessageOptions } from "zod-error";
 	export function generateErrorMessage(issues: $ZodIssue[], options?: ErrorMessageOptions): string;
 }
-export { };
-
+export {};
