@@ -3,7 +3,7 @@ import type { $ZodIssue } from "zod/v4/core/errors.d.cts";
 import type { AudioEngine } from "@/src/utils/audioEngine";
 
 import type { i18nInstanceType } from "./i18n";
-import type { Nullable, YouTubeNavigateStart } from "./types";
+import type { Nullable, YouTubeNavigateStart, YoutubePlayerQualityLabel } from "./types";
 
 declare module "*.svg" {
 	import React from "react";
