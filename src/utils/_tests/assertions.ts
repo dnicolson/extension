@@ -7,6 +7,12 @@ import type { ButtonPlacement, FeatureButtonId, FeatureMenuItemId } from "@/src/
 import { placementSelectors } from "@/src/utils/_tests/constants";
 import { getValueFromYouTubePlayer } from "@/src/utils/_tests/player";
 
+export async function expectBodyWithClass(page: Page, bodyClass: string): Promise<void> {
+	await expect(page.locator("body")).toHaveClass(new RegExp(`(^|\\s)${bodyClass}(\\s|$)`));
+}
+export async function expectBodyWithoutClass(page: Page, bodyClass: string): Promise<void> {
+	await expect(page.locator("body")).not.toHaveClass(new RegExp(`(^|\\s)${bodyClass}(\\s|$)`));
+}
 export async function expectCurrentQualityLevelToBeFalsy(page: Page, pageType: PageType = "watch", expectedQuality: YoutubePlayerQualityLevel) {
 	const currentQualityLevel = await getValueFromYouTubePlayer(page, "getPlaybackQuality", pageType);
 	expect(currentQualityLevel).toBeTruthy();
@@ -14,6 +20,22 @@ export async function expectCurrentQualityLevelToBeFalsy(page: Page, pageType: P
 }
 export async function expectCurrentQualityLevelToBeTruthy(page: Page, pageType: PageType = "watch", expectedQuality: YoutubePlayerQualityLevel) {
 	await expect.poll(async () => getValueFromYouTubePlayer(page, "getPlaybackQuality", pageType), { timeout: 10000 }).toBe(expectedQuality);
+}
+export async function expectElementsHidden(page: Page, selectors: readonly string[]): Promise<void> {
+	for (const selector of selectors) {
+		const locator = page.locator(selector);
+		for (let count = await locator.count(), i = 0; i < count; i++) {
+			await expect(locator.nth(i)).toHaveCSS("display", "none");
+		}
+	}
+}
+export async function expectElementsNotHidden(page: Page, selectors: readonly string[]): Promise<void> {
+	for (const selector of selectors) {
+		const locator = page.locator(selector);
+		for (let count = await locator.count(), i = 0; i < count; i++) {
+			await expect(locator.nth(i)).not.toHaveCSS("display", "none");
+		}
+	}
 }
 export async function expectFeatureButtonToBeFalsy(page: Page, featureId: FeatureButtonId) {
 	const featureButton = page.locator(`#${featureId}`);

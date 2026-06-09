@@ -6,6 +6,7 @@
     "ext": "ts,tsx,css,html,json",
     "ignore": [
         "src/**/*.spec.ts",
+        "src/features/__tests__/__generated__",
         "playwright.config.ts",
         "./src/utils/_tests/*.ts",
         "public/locales/en-US.json.d.ts",
