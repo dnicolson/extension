@@ -11,6 +11,8 @@ export const placementSelectors = {
 export const volume = 10;
 export const pageTypeRecord = {
 	channel_home: "channel_home",
+	channel_posts: "channel_posts",
+	channel_streams: "channel_streams",
 	channel_videos: "channel_videos",
 	home: "home",
 	live: "live",

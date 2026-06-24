@@ -9,7 +9,7 @@ import { navigateToPageType } from "@/src/utils/_tests/navigation";
 
 import { hideFeatureSelectors } from "./__generated__/hideFeatureSelectors";
 
-const { channel_home: channelHome, home, search, watch } = pageTypeRecord;
+const { channel_home: channelHome, home, search, subscriptions, watch } = pageTypeRecord;
 
 const subFeatures = [
 	{
@@ -41,11 +41,18 @@ const subFeatures = [
 		config: "hideShorts.videos.enabled" as const,
 		page: watch,
 		selectors: hideFeatureSelectors.hideShortsVideos.selectors
+	},
+	{
+		bodyClass: hideFeatureSelectors.hideShortsSubscriptions.bodyClass,
+		config: "hideShorts.subscriptions.enabled" as const,
+		page: subscriptions,
+		selectors: hideFeatureSelectors.hideShortsSubscriptions.selectors
 	}
 ] satisfies { bodyClass: string; config: string; page: PageType; selectors: readonly string[] }[];
 
 test.describe("hideShorts", () => {
 	for (const { bodyClass, config, page, selectors } of subFeatures) {
+		test.skip(page === "subscriptions", "Subscriptions page can't be tested");
 		test.describe(`${config}`, () => {
 			test(`hides on ${page}`, async ({ page: pageObj }) => {
 				await navigateToPageType(pageObj, page);

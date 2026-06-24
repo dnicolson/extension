@@ -1,13 +1,17 @@
 // Auto-generated. Do not edit manually.
 export const hideFeatureSelectors = {
-	hideArtificialIntelligenceSummary: {
-		bodyClass: "yte-hide-ai-summary",
+	hideArtificialIntelligence: {
+		bodyClass: "yte-hide-ai",
 		selectors: [
 			"#expandable-metadata [has-video-summary]",
 			"div#video-summary [has-video-summary]",
 			"yt-button-view-model .you-chat-entrypoint-button",
 			"yt-player-quick-action-buttons .you-chat-entrypoint-button",
-			"ytd-engagement-panel-section-list-renderer[target-id='PAyouchat']"
+			"ytd-engagement-panel-section-list-renderer[target-id='PAyouchat']",
+			'button-view-model:has(svg path[d="M19 0a5 5 0 01-5 5 5 5 0 015 5 5 5 0 015-5 5 5 0 01-5-5Zm-8 2a9 9 0 105.641 16.013c.044.07.094.135.152.194l3.5 3.5a1 1 0 001.414-1.414l-3.5-3.5a1.001 1.001 0 00-.194-.152A8.96 8.96 0 0019.945 12H17.93a7 7 0 11-5.99-7.938l1.675-1.676A9 9 0 0011 2Z"])',
+			".ytSearchboxComponentReportButton",
+			".ytSearchboxComponentAiSuggestionsContainer",
+			"yt-video-description-youchat-section-view-model"
 		]
 	},
 	hideEndScreenCards: { bodyClass: "yte-hide-end-screen-cards", selectors: [".ytp-ce-element", ".ytp-ce-hide-button-container"] },
@@ -63,6 +67,10 @@ export const hideFeatureSelectors = {
 	hideShortsSidebar: {
 		bodyClass: "yte-hide-shorts-sidebar",
 		selectors: ['ytd-guide-entry-renderer:has(a[title="Shorts"])', 'ytd-mini-guide-entry-renderer:has(a[title="Shorts"])']
+	},
+	hideShortsSubscriptions: {
+		bodyClass: "yte-hide-shorts-subscriptions",
+		selectors: ['ytd-browse[page-subtype="subscriptions"] ytd-rich-section-renderer:has([is-shorts])']
 	},
 	hideShortsVideos: {
 		bodyClass: "yte-hide-shorts-videos",

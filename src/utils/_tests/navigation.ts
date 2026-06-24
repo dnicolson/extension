@@ -21,6 +21,18 @@ export const pageFixtures: Record<PageType, VideoFixture[]> = {
 			url: "https://www.youtube.com/@RickAstleyYT"
 		}
 	],
+	channel_posts: [
+		{
+			capabilities: [],
+			url: "https://www.youtube.com/@RickAstleyYT/posts"
+		}
+	],
+	channel_streams: [
+		{
+			capabilities: [],
+			url: "https://www.youtube.com/@RickAstleyYT/streams"
+		}
+	],
 	channel_videos: [
 		{
 			capabilities: [],
