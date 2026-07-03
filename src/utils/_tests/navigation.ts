@@ -1,5 +1,4 @@
 import { expect, type Page } from "@playwright/test";
-import { test } from "playwright.config";
 
 import type { PageType } from "@/src/features/_registry/types";
 
@@ -100,12 +99,18 @@ export function getFixture(pageType: PageType, requirements: FixtureCapabilities
 	return match;
 }
 export async function navigateToPage(page: Page, url: string) {
-	await page.goto(url);
-	await page.waitForLoadState("domcontentloaded");
-	expect(normalizeUrl(page.url())).toBe(normalizeUrl(url));
+	for (let attempt = 0; attempt < 3; attempt++) {
+		try {
+			await page.goto(url, { waitUntil: "domcontentloaded" });
+			expect(normalizeUrl(page.url())).toBe(normalizeUrl(url));
+			return;
+		} catch (error) {
+			if (attempt === 2) throw error;
+			await page.waitForTimeout(500);
+		}
+	}
 }
 export async function navigateToPageType(page: Page, pageType: PageType, requirements: FixtureCapabilities[] = []): Promise<void> {
-	test.setTimeout(120_000);
 	if (pageType === "live") {
 		await navigateToLiveVideo(page);
 		await expect
@@ -160,9 +165,13 @@ async function navigateToLiveVideo(page: Page): Promise<void> {
 			.then(() => true)
 			.catch(() => false);
 		if (!navigated) {
-			await page.goto(channelUrl, {
-				waitUntil: "domcontentloaded"
-			});
+			try {
+				await page.goto(channelUrl, {
+					waitUntil: "domcontentloaded"
+				});
+			} catch {
+				await page.waitForTimeout(3000);
+			}
 			continue;
 		}
 		const watchShell = page.locator("ytd-watch-flexy,ytd-watch-grid");
@@ -183,6 +192,10 @@ async function navigateToLiveVideo(page: Page): Promise<void> {
 		await expect(page.locator("div#yte-message-from-extension")).toBeAttached();
 		await waitForYoutubePlayerReady(page, "live");
 		await pageSetup(page);
+		await page.evaluate(() => {
+			const player = document.querySelector<HTMLDivElement & { playVideo?: () => Promise<void> }>("#movie_player");
+			if (player?.playVideo) void player.playVideo();
+		});
 		await page.waitForTimeout(100);
 		return;
 	}
@@ -193,9 +206,9 @@ async function navigateToYoutubePage(page: Page, pageUrl: string, pageType: Page
 		await navigateToPage(page, pageUrl);
 	}
 	await page.bringToFront();
+	await page.waitForLoadState("domcontentloaded");
 	await expect(page.locator("div#yte-message-from-youtube")).toBeAttached();
 	await expect(page.locator("div#yte-message-from-extension")).toBeAttached();
-	await page.waitForLoadState("domcontentloaded");
 	if (["live", "shorts", "watch"].includes(pageType)) {
 		await waitForYoutubePlayerReady(page, pageType);
 	}

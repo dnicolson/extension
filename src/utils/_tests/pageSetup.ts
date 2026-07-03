@@ -20,6 +20,9 @@ const parseAdPodIndex = (text: Nullable<string>): Nullable<{ index: number; tota
 };
 
 async function handleYoutubeAds(page: Page): Promise<void> {
+	const GLOBAL_TIMEOUT = 60_000;
+	const startTime = Date.now();
+
 	const getAdInfo = async () => {
 		return await page.evaluate((selectors) => {
 			const isShowing = document.querySelector(selectors.adShowing) !== null;
@@ -61,13 +64,13 @@ async function handleYoutubeAds(page: Page): Promise<void> {
 		}
 	};
 	let lastPodKey: Nullable<string> = null;
-	while (true) {
+	while (Date.now() - startTime < GLOBAL_TIMEOUT) {
 		const adInfo = await getAdInfo();
 		if (!adInfo.isShowing) break;
 		if (adInfo.isSkippable) await clickSkipButton();
 		const maxWaitTime = adInfo.remainingSeconds !== null ? Math.min(adInfo.remainingSeconds * 1000, 120_000) : 30_000;
-		const start = Date.now();
-		while (Date.now() - start < maxWaitTime) {
+		const podStart = Date.now();
+		while (Date.now() - podStart < maxWaitTime && Date.now() - startTime < GLOBAL_TIMEOUT) {
 			const current = await getAdInfo();
 			if (!current.isShowing) return;
 			const currentPod = parseAdPodIndex(current.podText);
@@ -110,7 +113,15 @@ async function handleYoutubeErrors(page: Page): Promise<void> {
 			if (now - lastReload < COOLDOWN) return;
 			lastReload = now;
 			await page.reload({ waitUntil: "domcontentloaded" }).catch(() => undefined);
-			await page.waitForTimeout(2000);
+			await expect
+				.poll(
+					async () => {
+						if (page.isClosed()) return true;
+						return (await page.locator(YOUTUBE_ERROR_SELECTORS.error).count()) === 0;
+					},
+					{ intervals: [500], timeout: 30_000 }
+				)
+				.toBe(true);
 		} catch {}
 	};
 	await check();
@@ -123,13 +134,18 @@ const YOUTUBE_PROMO_SELECTOR = `
 `;
 
 export async function handleYoutubePromos(page: Page): Promise<void> {
-	await page.addStyleTag({
-		content: `
-			${YOUTUBE_PROMO_SELECTOR} {
-				display: none !important;
-			}
-		`
-	});
+	try {
+		await page.addStyleTag({
+			content: `
+				${YOUTUBE_PROMO_SELECTOR} {
+					display: none !important;
+				}
+			`
+		});
+	} catch (e) {
+		if (e instanceof Error && e.message.includes("Execution context was destroyed")) return;
+		throw e;
+	}
 }
 const YOUTUBE_OVERLAY_SELECTORS = {
 	container: ".ytp-overlay-bottom-left",

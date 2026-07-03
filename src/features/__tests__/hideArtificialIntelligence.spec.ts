@@ -14,7 +14,7 @@ const {
 
 const testPages = resolvePageTypes(metadata.dependencies?.includePages);
 
-test.describe("hideArtificialIntelligence.enabled", () => {
+test.describe("hideArtificialIntelligence", () => {
 	for (const pageType of testPages) {
 		test(`hides AI elements on ${pageType}`, async ({ page }) => {
 			await navigateToPageType(page, pageType);

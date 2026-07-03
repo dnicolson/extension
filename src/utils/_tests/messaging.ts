@@ -18,5 +18,5 @@ export async function sendYouTubeMessage(page: Page, message: Record<string, unk
 		document.dispatchEvent(new CustomEvent("yte-message-from-youtube"));
 	}, message);
 
-	await page.waitForTimeout(50);
+	await page.waitForTimeout(20);
 }

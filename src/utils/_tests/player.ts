@@ -6,7 +6,7 @@ import PlayerStates from "youtube-player/dist/constants/PlayerStates.js";
 
 import type { PageType } from "@/src/features/_registry/types";
 import type { PlayerQualityFallbackStrategy, YoutubePlayerQualityLevel } from "@/src/features/playerQuality/types";
-import type { ModifierKey, Nullable } from "@/src/types";
+import type { ModifierKey, Nullable, YouTubePlayerDiv } from "@/src/types";
 import type { ControlType, YouTubePlayerGetKeysWithoutParams, YouTubePlayerGetReturnType, YouTubePlayerSetKeys } from "@/src/utils/_tests/types";
 
 import { enableFeature, setOption } from "@/src/utils/_tests/features";
@@ -84,7 +84,43 @@ export async function adjustWithScrollWheel({
 	expect(valueAfterScroll).toBeTruthy();
 	expect(valueAfterScroll).toBe(controlType === "Speed" ? clamp(expectedValue, 0.25, 4) : expectedValue);
 }
-
+export async function ensureCaptionsState(page: Page, desired: boolean): Promise<void> {
+	const btn = page.locator("button.ytp-subtitles-button");
+	if ((await btn.count()) === 0) return;
+	if (await isCaptionsUnavailable(page)) return;
+	const current = await getCaptionsState(page);
+	if (current === null) return;
+	if (current === desired) return;
+	await btn.click({ force: true });
+	await page.waitForTimeout(150);
+	await expect.poll(async () => getCaptionsState(page)).toBe(desired);
+}
+export async function expectStableCaptionsState(page: Page, expected: boolean) {
+	let stableCount = 0;
+	await expect
+		.poll(async () => {
+			const state = await getCaptionsState(page);
+			if (state === expected) stableCount++;
+			else stableCount = 0;
+			return stableCount;
+		})
+		.toBe(2);
+}
+export async function freezeAndGetTime(page: Page, pageType: PageType) {
+	await page.evaluate(() => {
+		const video = document.querySelector<HTMLVideoElement>("video");
+		if (!video) return;
+		video.pause();
+	});
+	return await getValueFromYouTubePlayer(page, "getCurrentTime", pageType);
+}
+export async function getCaptionsState(page: Page): Promise<boolean | null> {
+	const btn = page.locator("button.ytp-subtitles-button");
+	if ((await btn.count()) === 0) return null;
+	const pressed = await btn.getAttribute("aria-pressed");
+	if (!pressed) return null;
+	return pressed === "true";
+}
 export async function getClosestQuality(
 	page: Page,
 	pageType: PageType = "watch",
@@ -123,6 +159,12 @@ export async function getValueFromYouTubePlayer<P extends Page, K extends YouTub
 	);
 	return value as Nullable<YouTubePlayerGetReturnType<K>>;
 }
+export async function isCaptionsUnavailable(page: Page): Promise<boolean> {
+	const btn = page.locator("button.ytp-subtitles-button");
+	if ((await btn.count()) === 0) return true;
+	const ariaLabel = await btn.getAttribute("aria-label");
+	return ariaLabel?.includes("unavailable") === true || ariaLabel?.includes("not available") === true;
+}
 export async function setValueOnYouTubePlayer<P extends Page, K extends YouTubePlayerSetKeys, V extends Parameters<YouTubePlayer[K]>>(
 	page: P,
 	pageType: PageType = "watch",
@@ -131,15 +173,12 @@ export async function setValueOnYouTubePlayer<P extends Page, K extends YouTubeP
 ) {
 	await page.evaluate(
 		async ({ key, selector, value }) => {
-			const container = document.querySelector(selector) as unknown as Nullable<YouTubePlayer>;
+			const container = document.querySelector(selector) as unknown as Nullable<YouTubePlayerDiv>;
 			if (!container) return null;
 			try {
+				const video = container.querySelector<HTMLVideoElement>("video");
 				if (key === "setPlaybackRate" && typeof value === "number") {
-					const video = document.querySelector<HTMLVideoElement>(`${selector} video`);
 					if (video) video.playbackRate = value;
-				} else if (key === "setVolume" && typeof value === "number") {
-					const video = document.querySelector<HTMLVideoElement>(`${selector} video`);
-					if (video) video.volume = value;
 				}
 				await (container[key] as (...args: V[]) => Promise<void>)(...value);
 			} catch (error) {
@@ -152,23 +191,57 @@ export async function setValueOnYouTubePlayer<P extends Page, K extends YouTubeP
 export async function setVolume(page: Page, volume: number, pageType: PageType = "watch") {
 	await setValueOnYouTubePlayer(page, pageType, "setVolume", volume);
 }
-export async function waitForYoutubePlayerReady(page: Page, pageType: PageType): Promise<void> {
-	await page.waitForFunction(async (pageType) => {
-		const player = document.querySelector(pageType === "shorts" ? "div#shorts-player" : "#movie_player") as unknown as Nullable<YouTubePlayer>;
-		if (!player) return false;
-		if (typeof player.getPlayerState !== "function") return false;
-		if (typeof player.getCurrentTime !== "function") return false;
-		try {
-			const state = await player.getPlayerState();
-			// -1 = unstarted
-			// 0 = ended
-			// 1 = playing
-			// 2 = paused
-			// 3 = buffering
-			// 5 = video cued
-			return state !== undefined && state !== null && state !== PlayerStates["UNSTARTED"];
-		} catch {
-			return false;
+export async function waitForStableTime(page: Page, pageType: PageType, threshold = 150) {
+	let last = await getValueFromYouTubePlayer(page, "getCurrentTime", pageType);
+	let stableFor = 0;
+	while (stableFor < threshold) {
+		await page.waitForTimeout(50);
+		const now = await getValueFromYouTubePlayer(page, "getCurrentTime", pageType);
+		expect(now).not.toBeNull();
+		expect(last).not.toBeNull();
+		if (Math.abs(now! - last!) < 0.05) {
+			stableFor += 50;
+		} else {
+			stableFor = 0;
 		}
-	}, pageType);
+		last = now;
+	}
+	return last;
+}
+
+export async function waitForYoutubePlayerReady(page: Page, pageType: PageType): Promise<void> {
+	await page.waitForFunction(
+		async (pageType) => {
+			const player = document.querySelector(pageType === "shorts" ? "div#shorts-player" : "#movie_player") as unknown as Nullable<YouTubePlayerDiv>;
+			if (!player) return false;
+			if (typeof player.getPlayerState !== "function") return false;
+			if (typeof player.getCurrentTime !== "function") return false;
+			if (typeof player.setVolume !== "function") return false;
+			try {
+				const state = await player.getPlayerState();
+				// -1 = unstarted
+				// 0 = ended
+				// 1 = playing
+				// 2 = paused
+				// 3 = buffering
+				// 5 = video cued
+				if (state === undefined || state === null || state === PlayerStates["UNSTARTED"]) return false;
+				const video = player.querySelector<HTMLVideoElement>("video");
+				if (!video) return false;
+				const { currentTime, networkState, readyState, seeking, volume } = video;
+				if (readyState < 2) return false;
+				if (seeking) return false;
+				if (networkState === 2) return false;
+				const v1 = volume;
+				const t1 = currentTime;
+				await new Promise((resolve) => setTimeout(resolve, 200));
+				const { currentTime: t2, volume: v2 } = video;
+				return v1 === v2 && t1 === t2;
+			} catch {
+				return false;
+			}
+		},
+		pageType,
+		{ timeout: 30_000 }
+	);
 }

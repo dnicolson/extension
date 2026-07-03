@@ -52,7 +52,7 @@ const subFeatures = [
 
 test.describe("hideShorts", () => {
 	for (const { bodyClass, config, page, selectors } of subFeatures) {
-		test.skip(page === "subscriptions", "Subscriptions page can't be tested");
+		if (page === "subscriptions") continue;
 		test.describe(`${config}`, () => {
 			test(`hides on ${page}`, async ({ page: pageObj }) => {
 				await navigateToPageType(pageObj, page);

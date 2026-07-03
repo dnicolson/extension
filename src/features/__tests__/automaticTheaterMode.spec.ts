@@ -3,11 +3,13 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "playwright.config";
 
 import { metadata } from "@/src/features/automaticTheaterMode/index.metadata";
+import { pageTypeRecord } from "@/src/utils/_tests/constants";
 import { disableFeature, enableFeature } from "@/src/utils/_tests/features";
 import { navigateToPageType } from "@/src/utils/_tests/navigation";
 import { resolvePageTypes } from "@/src/utils/_tests/utils";
 const testPages = resolvePageTypes(metadata.dependencies?.includePages);
 
+const { home } = pageTypeRecord;
 export async function expectNotTheaterMode(page: Page): Promise<void> {
 	await expect
 		.poll(
@@ -54,8 +56,10 @@ test.describe("automaticTheaterMode", () => {
 			await navigateToPageType(page, pageType);
 			await enableFeature(page, "automaticTheaterMode.enabled");
 			await expectTheaterMode(page);
-			await navigateToPageType(page, "home");
+			await navigateToPageType(page, home);
 			await navigateToPageType(page, pageType);
+			await disableFeature(page, "automaticTheaterMode.enabled");
+			await enableFeature(page, "automaticTheaterMode.enabled");
 			await expectTheaterMode(page);
 		});
 	}

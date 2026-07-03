@@ -7,11 +7,11 @@ import type { ButtonPlacement, FeatureButtonId, FeatureMenuItemId } from "@/src/
 import { placementSelectors } from "@/src/utils/_tests/constants";
 import { getValueFromYouTubePlayer } from "@/src/utils/_tests/player";
 
-export async function expectBodyWithClass(page: Page, bodyClass: string): Promise<void> {
-	await expect(page.locator("body")).toHaveClass(new RegExp(`(^|\\s)${bodyClass}(\\s|$)`));
+export async function expectBodyWithClass(page: Page, bodyClass: string, { timeout }: { timeout?: number } = {}): Promise<void> {
+	await expect(page.locator("body")).toHaveClass(new RegExp(`(^|\\s)${bodyClass}(\\s|$)`), { timeout });
 }
-export async function expectBodyWithoutClass(page: Page, bodyClass: string): Promise<void> {
-	await expect(page.locator("body")).not.toHaveClass(new RegExp(`(^|\\s)${bodyClass}(\\s|$)`));
+export async function expectBodyWithoutClass(page: Page, bodyClass: string, { timeout }: { timeout?: number } = {}): Promise<void> {
+	await expect(page.locator("body")).not.toHaveClass(new RegExp(`(^|\\s)${bodyClass}(\\s|$)`), { timeout });
 }
 export async function expectCurrentQualityLevelToBeFalsy(page: Page, pageType: PageType = "watch", expectedQuality: YoutubePlayerQualityLevel) {
 	const currentQualityLevel = await getValueFromYouTubePlayer(page, "getPlaybackQuality", pageType);
@@ -21,21 +21,41 @@ export async function expectCurrentQualityLevelToBeFalsy(page: Page, pageType: P
 export async function expectCurrentQualityLevelToBeTruthy(page: Page, pageType: PageType = "watch", expectedQuality: YoutubePlayerQualityLevel) {
 	await expect.poll(async () => getValueFromYouTubePlayer(page, "getPlaybackQuality", pageType), { timeout: 10000 }).toBe(expectedQuality);
 }
-export async function expectElementsHidden(page: Page, selectors: readonly string[]): Promise<void> {
+export async function expectElementsHidden(page: Page, selectors: readonly string[], { mode = "all" }: { mode?: "all" | "any" } = {}): Promise<void> {
 	for (const selector of selectors) {
 		const locator = page.locator(selector);
 		for (let count = await locator.count(), i = 0; i < count; i++) {
+			if (mode === "any") {
+				try {
+					await expect(locator.nth(i)).toHaveCSS("display", "none", { timeout: 1000 });
+					return;
+				} catch {}
+				continue;
+			}
 			await expect(locator.nth(i)).toHaveCSS("display", "none");
 		}
 	}
+	if (mode === "any") throw new Error("No selectors matched the expected state");
 }
-export async function expectElementsNotHidden(page: Page, selectors: readonly string[]): Promise<void> {
+export async function expectElementsNotHidden(
+	page: Page,
+	selectors: readonly string[],
+	{ mode = "all" }: { mode?: "all" | "any" } = {}
+): Promise<void> {
 	for (const selector of selectors) {
 		const locator = page.locator(selector);
 		for (let count = await locator.count(), i = 0; i < count; i++) {
+			if (mode === "any") {
+				try {
+					await expect(locator.nth(i)).not.toHaveCSS("display", "none", { timeout: 1000 });
+					return;
+				} catch {}
+				continue;
+			}
 			await expect(locator.nth(i)).not.toHaveCSS("display", "none");
 		}
 	}
+	if (mode === "any") throw new Error("No selectors matched the expected state");
 }
 export async function expectFeatureButtonToBeFalsy(page: Page, featureId: FeatureButtonId) {
 	const featureButton = page.locator(`#${featureId}`);

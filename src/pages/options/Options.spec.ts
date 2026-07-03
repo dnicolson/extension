@@ -5,9 +5,9 @@ test.describe("Options", () => {
 		expect(page.url()).toContain("/src/pages/options/index.html");
 		expect(await page.title()).toBe("YouTube Enhancer | Options");
 	});
-	test("should render language select", ({ page }) => {
+	test("should render language select", async ({ page }) => {
 		const languageSelect = page.locator("#language");
-		expect(languageSelect).toBeTruthy();
+		await expect(languageSelect).toBeAttached();
 	});
 	test("should import settings", async ({ page }) => {
 		const importSettings = page.locator("#import_settings_button");
@@ -15,7 +15,7 @@ test.describe("Options", () => {
 		await importSettings.click();
 		const importInput = page.locator("#import_settings_input");
 		await expect(importInput).toBeAttached();
-		await importInput.setInputFiles("./tests/test-settings.json");
+		await importInput.setInputFiles("tests/test-settings.json");
 		const settingsImported = page.locator("#notifications > div").getByText("Settings imported successfully");
 		await expect(settingsImported).toBeAttached();
 	});

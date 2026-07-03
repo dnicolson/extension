@@ -1,5 +1,6 @@
-// TODO: update tests to test all button placements
 import { test as base, type BrowserContext, chromium, defineConfig, devices, firefox, type Page } from "@playwright/test";
+import { mkdtemp } from "fs/promises";
+import { tmpdir } from "os";
 import { join } from "path";
 import { withExtension } from "playwright-webextext";
 import { cwd } from "process";
@@ -8,97 +9,115 @@ import { generateMissingFeatureTests } from "@/src/utils/_tests/generateMissingF
 
 generateMissingFeatureTests();
 
-export const test = base.extend<{
+const isCI = !!process.env.CI;
+type Fixtures = {
 	context: BrowserContext;
 	page: Page;
-}>({
+};
+
+type OptionsFixtures = Fixtures & {
+	extensionId: string;
+};
+
+async function createExtensionContext(browserName: string): Promise<BrowserContext> {
+	const pathToExtension = getExtensionPath(browserName);
+	const baseBrowser = browserName === "firefox" ? firefox : chromium;
+	const browserType = withExtension(baseBrowser, pathToExtension);
+	const userDataDir = await mkdtemp(join(tmpdir(), `pw-${browserName}-`));
+	return await browserType.launchPersistentContext(userDataDir, {
+		acceptDownloads: true,
+		args: isCI && browserName === "chromium" ? ["--headless=chrome"] : [],
+		downloadsPath: join(cwd(), "playwright-downloads"),
+		headless: false
+	});
+}
+
+async function getExtensionOrigin(context: BrowserContext): Promise<string> {
+	const page = context.pages()[0] ?? (await context.newPage());
+
+	await page.goto("https://www.youtube.com", { waitUntil: "domcontentloaded" });
+	await page.waitForSelector('script[src*="/src/pages/embedded/index.js"]', { state: "attached", timeout: 15_000 });
+
+	const origin = await page.evaluate(() => {
+		const script = document.querySelector('script[src*="/src/pages/embedded/index.js"]');
+		return new URL(script!.getAttribute("src")!).origin;
+	});
+
+	return origin;
+}
+
+function getExtensionPath(browserName: string): string {
+	return join(
+		cwd(),
+		`dist/${
+			browserName === "chromium" ? "Chrome"
+			: browserName === "firefox" ? "Firefox"
+			: "Chrome"
+		}`
+	);
+}
+
+async function getPrimaryPage(context: BrowserContext): Promise<Page> {
+	let [page] = context.pages();
+	if (!page) page = await context.newPage();
+	await Promise.all(
+		context
+			.pages()
+			.filter((p) => p !== page && (!p.url() || p.url() === "about:blank"))
+			.map((p) => p.close().catch(() => {}))
+	);
+	return page;
+}
+
+export const test = base.extend<Fixtures>({
 	context: async ({ browserName }, use) => {
-		const pathToExtension = join(
-			cwd(),
-			`dist/${
-				browserName === "chromium" ? "Chrome"
-				: browserName === "firefox" ? "Firefox"
-				: "Chrome"
-			}`
-		);
-		const baseBrowser = browserName === "firefox" ? firefox : chromium;
-		const browserType = withExtension(baseBrowser, pathToExtension);
-		const context = await browserType.launchPersistentContext("", {
-			acceptDownloads: true,
-			downloadsPath: join(cwd(), "playwright-downloads"),
-			headless: false
-		});
-		await use(context);
-		await context.close();
+		const context = await createExtensionContext(browserName);
+		try {
+			await use(context);
+		} finally {
+			await context.close();
+		}
 	},
 	page: async ({ context }, use) => {
-		let [page] = context.pages();
-		if (!page) page = await context.newPage();
-		for (const p of context.pages()) {
-			if (p !== page) await p.close().catch(() => {});
-		}
+		const page = await getPrimaryPage(context);
 		await use(page);
 	}
 });
-export const optionsTest = base.extend<{
-	context: BrowserContext;
-	extensionId: string;
-	page: Page;
-}>({
+export const optionsTest = base.extend<OptionsFixtures>({
 	context: async ({ browserName }, use) => {
-		const pathToExtension = join(
-			cwd(),
-			`dist/${
-				browserName === "chromium" ? "Chrome"
-				: browserName === "firefox" ? "Firefox"
-				: "Chrome"
-			}`
-		);
-		const baseBrowser = browserName === "firefox" ? firefox : chromium;
-		const browserType = withExtension(baseBrowser, pathToExtension);
-		const context = await browserType.launchPersistentContext("", {
-			acceptDownloads: true,
-			downloadsPath: join(cwd(), "playwright-downloads"),
-			headless: false
-		});
-		await use(context);
-		await context.close();
-	},
-	extensionId: async ({ browserName, context }, use) => {
-		switch (browserName) {
-			case "chromium": {
-				let [background] = context.serviceWorkers();
-				if (!background) background = await context.waitForEvent("serviceworker");
-				const [, , extensionId] = background.url().split("/");
-				await use(extensionId);
-				break;
-			}
-			case "firefox": {
-				const extensionId = "{c49b13b1-5dee-4345-925e-0c793377e3fa}";
-				await use(extensionId);
-				break;
-			}
-			case "webkit":
-				return;
+		const context = await createExtensionContext(browserName);
+		try {
+			await use(context);
+		} finally {
+			await context.close();
 		}
 	},
-	page: async ({ browserName, context, extensionId }, use) => {
-		const extensionProtocol = browserName === "firefox" ? "moz-extension" : "chrome-extension";
+
+	page: async ({ context }, use) => {
+		const origin = await getExtensionOrigin(context);
+
+		// Check if extension already has an options page tab open (from onInstalled handler)
+		const existingOptionsPage = context.pages().find((p) => {
+			const url = p.url();
+			return url && url.startsWith(origin) && url.includes("/src/pages/options/index.html");
+		});
+
+		if (existingOptionsPage) {
+			await existingOptionsPage.waitForLoadState("domcontentloaded");
+			await use(existingOptionsPage);
+			return;
+		}
+
 		const page = await context.newPage();
-		await page.goto(`${extensionProtocol}://${extensionId}/src/pages/options/index.html`);
-		await page.waitForLoadState();
+		await page.goto(`${origin}/src/pages/options/index.html`, { waitUntil: "domcontentloaded" });
 		await use(page);
 	}
 });
 export const { describe, expect } = test;
-
 export default defineConfig({
-	/* Fail the build on CI if you accidentally left test.only in the source code. */
-	forbidOnly: !!process.env.CI,
-	/* Run tests in files in parallel */
+	forbidOnly: isCI,
 	fullyParallel: true,
-	globalTimeout: process.env.CI ? 60 * 1000 * 30 : undefined,
-	/* Configure projects for major browsers */
+	globalTimeout: isCI ? 1_800_000 : undefined,
 	projects: [
 		{
 			name: "chromium",
@@ -114,13 +133,13 @@ export default defineConfig({
 			}
 		}
 	],
-	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
-	reporter: process.env.CI ? "dot" : [["html", { host: "0.0.0.0", open: "on-failure", port: 9323 }]],
-	retries: process.env.CI ? 2 : 1,
+	reporter: isCI ? "dot" : [["html", { host: "0.0.0.0", open: "on-failure", port: 9323 }]],
+	retries: isCI ? 2 : 1,
 	testDir: ".",
-	timeout: process.env.CI ? 30 * 1000 : 60 * 1000 * 1,
-	/* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+	timeout: isCI ? 30_000 : 60_000,
 	use: {
+		actionTimeout: 15_000,
+		navigationTimeout: 30_000,
 		screenshot: {
 			fullPage: true,
 			mode: "only-on-failure",
@@ -144,6 +163,5 @@ export default defineConfig({
 			width: 1280
 		}
 	},
-	/* Opt out of parallel tests on CI. */
-	workers: process.env.CI ? 1 : 3
+	workers: isCI ? 1 : 3
 });

@@ -1,3 +1,4 @@
+import type PlayerStates from "youtube-player/dist/constants/PlayerStates";
 import type { PlayerSize, YouTubePlayer } from "youtube-player/dist/types";
 
 import type { YoutubePlayerQualityLevel } from "@/src/features/playerQuality/types";
@@ -24,8 +25,11 @@ export type YouTubePlayerGetReturnType<K extends YouTubePlayerGetKeysWithoutPara
 	K extends keyof YouTubePlayerGetReturnTypeMappings ? YouTubePlayerGetReturnTypeMappings[K] : "Return type not implemented";
 export type YouTubePlayerGetReturnTypeMappings = {
 	getAvailableQualityLevels: Exclude<YoutubePlayerQualityLevel, "auto">[];
+	getCurrentTime: number;
+	getDuration: number;
 	getPlaybackQuality: YoutubePlayerQualityLevel;
 	getPlaybackRate: number;
+	getPlayerState: PlayerStates;
 	getSize: PlayerSize;
 	getVolume: number;
 };
