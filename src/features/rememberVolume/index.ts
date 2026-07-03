@@ -7,7 +7,7 @@ import { waitForElement } from "@/src/utils/dom/wait";
 import { isLivePage, isShortsPage, isWatchPage } from "@/src/utils/url";
 
 import { metadata } from "./index.metadata";
-import { setupVolumeChangeListener } from "./utils";
+import { cleanupShortsObserver, setupVolumeChangeListener } from "./utils";
 
 async function restoreVolume(stateAPI: FeatureStateAPI<"rememberVolume">) {
 	const { shortsPageVolume, watchPageVolume } = stateAPI.getState();
@@ -33,7 +33,10 @@ async function restoreVolume(stateAPI: FeatureStateAPI<"rememberVolume">) {
 
 export default createFeature({
 	...metadata,
-	onDisable: () => eventManager.removeEventListeners("rememberVolume"),
+	onDisable: () => {
+		cleanupShortsObserver();
+		eventManager.removeEventListeners("rememberVolume");
+	},
 	onEnable: async (_, stateAPI) => {
 		await restoreVolume(stateAPI);
 	},

@@ -20,7 +20,6 @@ const menuButtonId = "#yte-feature-menu-button";
 const panelId = "#yte-panel-menu";
 const itemHeight = 40;
 const menuPadding = 16;
-export { buttonContainerId };
 
 // ─── Module-level state ───────────────────────────────────────────
 

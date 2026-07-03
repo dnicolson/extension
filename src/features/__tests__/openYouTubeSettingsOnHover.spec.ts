@@ -35,9 +35,8 @@ test.describe("openYouTubeSettingsOnHover", () => {
 			await disableFeature(page, "openYouTubeSettingsOnHover.enabled");
 			await forcePlayerVisible(page);
 			await page.locator(".ytp-settings-button").dispatchEvent("mouseenter");
-			await page.waitForTimeout(500);
 			const settingsMenu = page.locator(".ytp-settings-menu:not(#yte-feature-menu)");
-			await expect(settingsMenu).not.toBeVisible();
+			await expect(settingsMenu).not.toBeVisible({ timeout: 3000 });
 		});
 		test(`youtube settings should close when leaving the settings button on ${pageType}`, async ({ page }) => {
 			await navigateToPageType(page, pageType);

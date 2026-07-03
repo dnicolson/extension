@@ -38,14 +38,24 @@ type WatchTimeParameters = {
 	playlistItemsVideoDetails: VideoDetails[];
 	playlistWatchTimeGetMethod: PlaylistWatchTimeGetMethod;
 };
-export async function appendPlaylistLengthUIElement(playlistLengthUIElement: HTMLDivElement): Promise<boolean> {
+export async function appendPlaylistLengthUIElement(playlistLengthUIElement: HTMLDivElement): Promise<void> {
 	const { playlist, watch } = getHeaderSelectors();
-	await waitForAllElements([isWatchPage() ? watch : playlist]);
+	try {
+		await waitForAllElements([isWatchPage() ? watch : playlist]);
+	} catch {
+		// Header element not found, fall through to fallback placement
+	}
 	const headerContents = isWatchPage() ? document.querySelector(watch) : selectFirstWithWidth(playlist);
-	if (!headerContents) return false;
-	document.querySelector("#yte-playlist-length-ui")?.remove();
-	headerContents.append(playlistLengthUIElement);
-	return true;
+	if (headerContents) {
+		document.querySelector("#yte-playlist-length-ui")?.remove();
+		headerContents.append(playlistLengthUIElement);
+		return;
+	}
+	const videoList = document.querySelector(playlistItemsSelector());
+	if (videoList?.parentNode) {
+		document.querySelector("#yte-playlist-length-ui")?.remove();
+		videoList.parentNode.insertBefore(playlistLengthUIElement, videoList);
+	}
 }
 export function createPlaylistLengthUIElement(
 	initialState: VideoTimeState,
@@ -172,7 +182,8 @@ export const getPlaylistItemsFromWatchPage = () =>
 	getPlaylistItems(
 		isNewYouTubeVideoLayout() ? "#page-manager > ytd-watch-grid #playlist #items" : "#page-manager > ytd-watch-flexy #playlist #items"
 	);
-export const getPlaylistItemsFromPlaylistPage = () => getPlaylistItems("ytd-playlist-video-list-renderer div#contents");
+export const getPlaylistItemsFromPlaylistPage = () =>
+	getPlaylistItems("ytd-playlist-video-list-renderer div#contents, ytd-item-section-renderer div#contents");
 export function getPlaylistItemsWatchedProgress(playlistItems: HTMLElement[]): VideoDetails[] {
 	return playlistItems.map(getVideoDetails);
 }
@@ -184,12 +195,11 @@ export async function initializePlaylistLength({
 	const { playlist, watch } = getHeaderSelectors();
 	let headerContents = isWatchPage() ? document.querySelector(watch) : selectFirstWithWidth(playlist);
 	if (!headerContents) {
-		headerContents = await waitForElement(isWatchPage() ? watch : playlist);
+		headerContents = await waitForElement(isWatchPage() ? watch : playlist, 10000, "optional");
 	}
-	if (!headerContents) return null;
 	const videoElement = getVideoElement();
 	let playlistItemsElement = document.querySelector(playlistItemsSelector());
-	if (!playlistItemsElement) playlistItemsElement = await waitForElement(playlistItemsSelector());
+	if (!playlistItemsElement) playlistItemsElement = await waitForElement(playlistItemsSelector(), 10000);
 	if (!playlistItemsElement) return null;
 	const { playbackRate: playerSpeed = 1 } = videoElement || {};
 	const { totalTimeSeconds, watchedTimeSeconds } = await getDataForPlaylistLengthUIElement({
@@ -329,7 +339,7 @@ function getVideoDurationInSeconds(videoElement: Element): number {
 function getVideoId(videoElement: Element): Nullable<string> {
 	const videoIdElement = videoElement.querySelector<HTMLAnchorElement>("a#thumbnail");
 	if (!videoIdElement) return null;
-	const url = new URL(`https://youtube.com${videoIdElement.href}`);
+	const url = new URL(videoIdElement.href, "https://youtube.com");
 	return url.searchParams.get("v");
 }
 function getVideoProgress(videoElement: Element): number {

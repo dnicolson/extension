@@ -73,7 +73,9 @@ async function setupPlaylistLength(config: configuration["playlistLength"]) {
 	};
 	await waitForElement(playlistItemsSelector());
 	await runInit(params);
-	observePlaylistItems(params);
+	if (!documentObserver) {
+		observePlaylistItems(params);
+	}
 	resizeObserver?.disconnect();
 	resizeObserver = new ResizeObserver(() => {
 		void runInit(params);

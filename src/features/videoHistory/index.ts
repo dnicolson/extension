@@ -184,7 +184,10 @@ export default createFeature({
 	},
 	onNavigate: async ({ resumeType }, _, navigationType) => {
 		if (navigationType === "finish") await handleVideoChange(resumeType);
-		else if (navigationType === "start") document.getElementById(promptId)?.remove();
+		else if (navigationType === "start") {
+			currentVideoId = null;
+			document.getElementById(promptId)?.remove();
+		}
 	},
 	persistState: true,
 	state: {
@@ -276,6 +279,7 @@ function resetState() {
 	if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
 	animationFrameId = null;
 	start = null;
+	currentVideoId = null;
 	lastSave = 0;
 	lastSavedTimestamp = 0;
 	hasMarkedWatched = false;
