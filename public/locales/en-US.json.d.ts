@@ -391,7 +391,7 @@ interface EnUS {
           },
           monoToStereoButton: {
             enable: {
-              label: 'Mono to stereo button',
+              label: 'Mono to Stereo button',
               title: 'Adds a button to convert mono audio to stereo. Stereo tracks remain unchanged.'
             }
           },

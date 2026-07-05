@@ -5,7 +5,7 @@ import type { PageType } from "@/src/features/_registry/types";
 import { pageSetup } from "@/src/utils/_tests/pageSetup";
 import { waitForYoutubePlayerReady } from "@/src/utils/_tests/player";
 
-export const fixtureCapabilities = ["ambientMode", "autoPlay", "captions", "videoHistory", "monoAudio", "playlistLength"] as const;
+export const fixtureCapabilities = ["ambientMode", "autoPlay", "captions", "timestamps", "videoHistory", "monoAudio", "playlistLength"] as const;
 
 export type FixtureCapabilities = (typeof fixtureCapabilities)[number];
 
@@ -86,6 +86,10 @@ export const pageFixtures: Record<PageType, VideoFixture[]> = {
 		{
 			capabilities: ["monoAudio"],
 			url: "https://www.youtube.com/watch?v=ReYYEs-tHx4"
+		},
+		{
+			capabilities: ["timestamps"],
+			url: "https://www.youtube.com/watch?v=QCsJbLGpY_A"
 		}
 	]
 };

@@ -6,6 +6,7 @@ import { expectBodyWithClass, expectBodyWithoutClass, expectElementsHidden, expe
 import { pageTypeRecord } from "@/src/utils/_tests/constants";
 import { disableFeature, enableFeature } from "@/src/utils/_tests/features";
 import { navigateToPageType } from "@/src/utils/_tests/navigation";
+import { loginRequiredPages } from "@/src/utils/_tests/utils";
 
 import { hideFeatureSelectors } from "./__generated__/hideFeatureSelectors";
 
@@ -52,15 +53,16 @@ const subFeatures = [
 
 test.describe("hideShorts", () => {
 	for (const { bodyClass, config, page, selectors } of subFeatures) {
-		if (page === "subscriptions") continue;
 		test.describe(`${config}`, () => {
 			test(`hides on ${page}`, async ({ page: pageObj }) => {
+				test.skip(loginRequiredPages.includes(page), `${page} requires login`);
 				await navigateToPageType(pageObj, page);
 				await enableFeature(pageObj, config);
 				await expectBodyWithClass(pageObj, bodyClass);
 				await expectElementsHidden(pageObj, selectors);
 			});
 			test(`shows when disabled on ${page}`, async ({ page: pageObj }) => {
+				test.skip(loginRequiredPages.includes(page), `${page} requires login`);
 				await navigateToPageType(pageObj, page);
 				await disableFeature(pageObj, config);
 				await expectBodyWithoutClass(pageObj, bodyClass);
